@@ -1,9 +1,9 @@
 import React from 'react';
 import { CricketProvider } from './Components/CricketContext';
-import { ScoreCard } from './Components/ScoreCard';
-import {ControlPanel} from './Components/ControlPanel';
+import ScoreCard from './Components/ScoreCard';
+import ControlPanel from './Components/ControlPanel';
 
-export default function Home() {
+const App: React.FC = () => {
   return (
     <CricketProvider>
       <div className="container mx-auto p-4 bg-gray-100 min-h-screen">
@@ -14,4 +14,6 @@ export default function Home() {
       </div>
     </CricketProvider>
   );
-}
+};
+
+export default App;

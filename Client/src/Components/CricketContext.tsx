@@ -1,82 +1,37 @@
+// CricketContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { ScoringValues, ScorecardData } from './type';
 
-type Player = {
-  _id: string;
-  name: string;
-  out: string;
-  runs: number;
-  ballFaced: number;
-  runConceeded: number;
-  overBowled: number;
-  wicketTaken: number;
-};
-
-type Team = {
-  _id: string;
-  name: string;
-  players: Player[];
-};
-
-type Inning = {
-  extra: {
-    Wide: number;
-    NoBall: number;
-    Dot: number;
-    LegBye: number;
-    Bye: number;
-    OverThrow: number;
-  };
-  totalRun: number;
-  totalWicket: number;
-  totalOver: number;
-  totalBall: number;
-};
-
-type MatchDetails = {
-  inning1: Inning;
-  inning2: Inning;
-  _id: string;
-  team1: string;
-  team2: string;
-  createdAt: string;
-};
-
-type ScorecardData = {
-  matchdetails: MatchDetails[];
-  teamdetails: Team[];
-  teamdetails2: Team[];
-};
-
-type ScoringValues = {
-  extra: boolean;
-  noball: number;
-  wide: number;
-  legbye: number;
-  bye: number;
-  overthrow: number;
-  runs: number;
-  wicket: number;
-  striker: string;
-  nonStriker: string;
-  bowler: string;
-};
+const MAX_OVERS = 20;
+const MAX_WICKETS = 10;
 
 type CricketContextType = {
-  scorecardData: ScorecardData | null;
-  setScorecardData: React.Dispatch<React.SetStateAction<ScorecardData | null>>;
   val: ScoringValues;
   setVal: React.Dispatch<React.SetStateAction<ScoringValues>>;
-  currentInning: 'inning1' | 'inning2';
-  setCurrentInning: React.Dispatch<React.SetStateAction<'inning1' | 'inning2'>>;
+  scorecardData: ScorecardData | null;
+  setScorecardData: React.Dispatch<React.SetStateAction<ScorecardData | null>>;
+  loading: boolean;
+  error: string | null;
   lastDeliveries: string[];
   setLastDeliveries: React.Dispatch<React.SetStateAction<string[]>>;
-  loading: boolean;
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  error: string | null;
-  setError: React.Dispatch<React.SetStateAction<string | null>>;
+  currentInning: 'inning1' | 'inning2';
+  setCurrentInning: React.Dispatch<React.SetStateAction<'inning1' | 'inning2'>>;
+  showOverthrowOptions: boolean;
+  setShowOverthrowOptions: React.Dispatch<React.SetStateAction<boolean>>;
   fetchScorecardData: () => Promise<void>;
+  handleButtonClick: (type: keyof ScoringValues, value: number | boolean) => void;
+  handleOverthrowSelect: (runs: number) => void;
+  isAllPlayersSelected: () => boolean;
+  resetScore: () => void;
   submitScore: () => Promise<void>;
+  updateLastDeliveries: () => void;
+  rotateStrike: () => void;
+  checkInningCompletion: () => void;
+  formatOvers: (totalOver: number, totalBall: number) => string;
+  calculateTarget: () => number | null;
+  calculateRemainingBalls: () => number;
+  calculateRequiredRunRate: () => number;
 };
 
 const CricketContext = createContext<CricketContextType | undefined>(undefined);
@@ -90,7 +45,6 @@ export const useCricketContext = () => {
 };
 
 export const CricketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [scorecardData, setScorecardData] = useState<ScorecardData | null>(null);
   const [val, setVal] = useState<ScoringValues>({
     extra: false,
     noball: 0,
@@ -104,20 +58,27 @@ export const CricketProvider: React.FC<{ children: React.ReactNode }> = ({ child
     nonStriker: '',
     bowler: ''
   });
-  const [currentInning, setCurrentInning] = useState<'inning1' | 'inning2'>('inning1');
-  const [lastDeliveries, setLastDeliveries] = useState<string[]>([]);
+
+  const [scorecardData, setScorecardData] = useState<ScorecardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastDeliveries, setLastDeliveries] = useState<string[]>([]);
+  const [currentInning, setCurrentInning] = useState<'inning1' | 'inning2'>('inning1');
+  const [showOverthrowOptions, setShowOverthrowOptions] = useState(false);
+
+  useEffect(() => {
+    fetchScorecardData();
+  }, []);
 
   const fetchScorecardData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:3000/api/v1/matches/view');
+      const response = await axios.get('https://cricket-scorecard-1.onrender.com/api/v1/matches/view');
       setScorecardData(response.data);
       setLoading(false);
       
-      if (response.data.matchdetails[0].inning1.totalWicket === 10 || 
-          (response.data.matchdetails[0].inning1.totalOver === 20 && 
+      if (response.data.matchdetails[0].inning1.totalWicket === MAX_WICKETS || 
+          (response.data.matchdetails[0].inning1.totalOver === MAX_OVERS && 
            response.data.matchdetails[0].inning1.totalBall === 0)) {
         setCurrentInning('inning2');
       }
@@ -127,72 +88,90 @@ export const CricketProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const submitScore = async () => {
-    if (!scorecardData) return;
+  const handleButtonClick = (type: keyof ScoringValues, value: number | boolean) => {
+    setVal(prev => {
+      const newVal = { ...prev, [type]: value };
+      
+      if (type === 'noball' || type === 'wide' || type === 'legbye' || type === 'bye' || type === 'overthrow') {
+        newVal.extra = true;
+      }
+      
+      return newVal;
+    });
 
-    const payload = {
-      ...val,
-      extra: val.noball > 0 || val.wide > 0 || val.legbye > 0 || val.bye > 0 || val.overthrow > 0
-    };
-
-    // Optimistic update
-    const updatedScorecardData = { ...scorecardData };
-    const currentInningData = updatedScorecardData.matchdetails[0][currentInning];
-    
-    currentInningData.totalRun += val.runs + val.overthrow + val.legbye + val.bye + (val.wide ? 1 : 0) + (val.noball ? 1 : 0);
-    currentInningData.totalWicket += val.wicket;
-    currentInningData.totalBall += 1;
-    if (currentInningData.totalBall === 6) {
-      currentInningData.totalOver += 1;
-      currentInningData.totalBall = 0;
+    if (type === 'overthrow') {
+      setShowOverthrowOptions(true);
     }
-    
-    currentInningData.extra.Wide += val.wide;
-    currentInningData.extra.NoBall += val.noball;
-    currentInningData.extra.LegBye += val.legbye;
-    currentInningData.extra.Bye += val.bye;
-    currentInningData.extra.OverThrow += val.overthrow;
+  };
 
-    setScorecardData(updatedScorecardData);
-    updateLastDeliveries();
+  const handleOverthrowSelect = (runs: number) => {
+    setVal(prev => ({ ...prev, overthrow: runs, extra: true }));
+    setShowOverthrowOptions(false);
+  };
+
+  const isAllPlayersSelected = () => {
+    return val.striker !== '' && val.nonStriker !== '' && val.bowler !== '';
+  };
+
+  const resetScore = () => {
+    setVal({
+      extra: false,
+      noball: 0,
+      wide: 0,
+      legbye: 0,
+      bye: 0,
+      overthrow: 0,
+      runs: 0,
+      wicket: 0,
+      striker: '',
+      nonStriker: '',
+      bowler: ''
+    });
+  };
+
+  const submitScore = async () => {
+    if (!isAllPlayersSelected()) return;
 
     try {
-      await axios.post(`http://localhost:3000/api/v1/matches/66f1350b7d11619154e2ae00/update/${currentInning === 'inning1' ? '1' : '2'}`, payload);
-      // If the API call is successful, we don't need to do anything else as we've already updated the UI
+      const payload = {
+        ...val,
+        extra: val.noball > 0 || val.wide > 0 || val.legbye > 0 || val.bye > 0 || val.overthrow > 0
+      };
+
+      await axios.post(`https://cricket-scorecard-1.onrender.com/api/v1/matches/66f1350b7d11619154e2ae00/update/${currentInning === 'inning1' ? '1' : '2'}`, payload);
+      fetchScorecardData();
+      updateLastDeliveries();
+      rotateStrike();
+      checkInningCompletion();
+      
+      if (val.wicket) {
+        setVal(prev => ({
+          ...prev,
+          striker: '',
+          extra: false,
+          noball: 0,
+          wide: 0,
+          legbye: 0,
+          bye: 0,
+          overthrow: 0,
+          runs: 0,
+          wicket: 0
+        }));
+      } else {
+        setVal(prev => ({
+          ...prev,
+          extra: false,
+          noball: 0,
+          wide: 0,
+          legbye: 0,
+          bye: 0,
+          overthrow: 0,
+          runs: 0,
+          wicket: 0
+        }));
+      }
     } catch (error) {
       console.error('Error updating score:', error);
-      // If there's an error, we should revert our optimistic update
-      fetchScorecardData();
-    }
-
-    rotateStrike();
-    checkInningCompletion();
-    
-    if (val.wicket) {
-      setVal(prev => ({
-        ...prev,
-        striker: '',
-        extra: false,
-        noball: 0,
-        wide: 0,
-        legbye: 0,
-        bye: 0,
-        overthrow: 0,
-        runs: 0,
-        wicket: 0
-      }));
-    } else {
-      setVal(prev => ({
-        ...prev,
-        extra: false,
-        noball: 0,
-        wide: 0,
-        legbye: 0,
-        bye: 0,
-        overthrow: 0,
-        runs: 0,
-        wicket: 0
-      }));
     }
   };
 
@@ -212,10 +191,10 @@ export const CricketProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const rotateStrike = () => {
     const totalRuns = val.runs + val.overthrow + val.legbye + val.bye;
     if(val.wicket) {
-      setVal(prev => ({
-        ...prev,
-        striker: ''
-      }))
+        setVal(prev => ({
+            ...prev,
+            striker: ''
+        }))
     }
     if ((totalRuns % 2 !== 0 && !val.extra)) {
       setVal(prev => ({
@@ -224,20 +203,20 @@ export const CricketProvider: React.FC<{ children: React.ReactNode }> = ({ child
         nonStriker: prev.striker
       }));
     }
-    if(scorecardData?.matchdetails[0][currentInning].totalBall === 5){
-      setVal(prev => ({
-        ...prev,
-        striker: prev.nonStriker,
-        nonStriker: prev.striker
-      }));
+    if(scorecardData?.matchdetails[0][currentInning].totalBall ===5){
+        setVal(prev => ({
+            ...prev,
+            striker: prev.nonStriker,
+            nonStriker: prev.striker
+          }));
     } 
   };
 
   const checkInningCompletion = () => {
     if (!scorecardData) return;
     const inning = scorecardData.matchdetails[0][currentInning];
-    if (inning.totalWicket === 10 || 
-        (inning.totalOver === 20 && inning.totalBall === 0)) {
+    if (inning.totalWicket === MAX_WICKETS || 
+        (inning.totalOver === MAX_OVERS && inning.totalBall === 0)) {
       if (currentInning === 'inning1') {
         setCurrentInning('inning2');
         setVal(prev => ({
@@ -252,26 +231,58 @@ export const CricketProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  useEffect(() => {
-    fetchScorecardData();
-  }, []);
+  const formatOvers = (totalOver: number, totalBall: number) => {
+    return `${totalOver}.${totalBall}`;
+  };
+
+  const calculateTarget = () => {
+    if (!scorecardData) return null;
+    const inning1 = scorecardData.matchdetails[0].inning1;
+    return inning1.totalRun + 1;
+  };
+
+  const calculateRemainingBalls = () => {
+    if (!scorecardData) return 0;
+    const inning2 = scorecardData.matchdetails[0].inning2;
+    return MAX_OVERS * 6 - (inning2.totalOver * 6 + inning2.totalBall);
+  };
+
+  const calculateRequiredRunRate = () => {
+    if (!scorecardData) return 0;
+    const inning1 = scorecardData.matchdetails[0].inning1;
+    const inning2 = scorecardData.matchdetails[0].inning2;
+    const remainingRuns = inning1.totalRun + 1 - inning2.totalRun;
+    const remainingBalls = calculateRemainingBalls();
+    return (remainingRuns / remainingBalls) * 6;
+  };
 
   return (
     <CricketContext.Provider value={{
-      scorecardData,
-      setScorecardData,
       val,
       setVal,
-      currentInning,
-      setCurrentInning,
+      scorecardData,
+      setScorecardData,
+      loading,
+      error,
       lastDeliveries,
       setLastDeliveries,
-      loading,
-      setLoading,
-      error,
-      setError,
+      currentInning,
+      setCurrentInning,
+      showOverthrowOptions,
+      setShowOverthrowOptions,
       fetchScorecardData,
-      submitScore
+      handleButtonClick,
+      handleOverthrowSelect,
+      isAllPlayersSelected,
+      resetScore,
+      submitScore,
+      updateLastDeliveries,
+      rotateStrike,
+      checkInningCompletion,
+      formatOvers,
+      calculateTarget,
+      calculateRemainingBalls,
+      calculateRequiredRunRate
     }}>
       {children}
     </CricketContext.Provider>

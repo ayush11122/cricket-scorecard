@@ -1,16 +1,20 @@
+// ScoreCard.tsx
 import React from 'react';
 import { useCricketContext } from './CricketContext';
 
-export const ScoreCard: React.FC = () => {
-  const { scorecardData, currentInning, val, lastDeliveries, loading, error } = useCricketContext();
+const ScoreCard: React.FC = () => {
+  const { 
+    scorecardData, 
+    currentInning, 
+    val, 
+    lastDeliveries, 
+    formatOvers,
+    calculateTarget,
+    calculateRemainingBalls,
+    calculateRequiredRunRate
+  } = useCricketContext();
 
-  const formatOvers = (totalOver: number, totalBall: number) => {
-    return `${totalOver}.${totalBall}`;
-  };
-
-  if (loading) return <div className="text-center mt-8">Loading...</div>;
-  if (error) return <div className="text-center mt-8 text-red-600">{error}</div>;
-  if (!scorecardData) return <div className="text-center mt-8">No data available</div>;
+  if (!scorecardData) return null;
 
   const battingTeam = currentInning === 'inning1' ? scorecardData.teamdetails[0] : scorecardData.teamdetails2[0];
   const bowlingTeam = currentInning === 'inning1' ? scorecardData.teamdetails2[0] : scorecardData.teamdetails[0];
@@ -19,6 +23,7 @@ export const ScoreCard: React.FC = () => {
 
   return (
     <div className="md:w-2/3 bg-white shadow-md rounded-lg p-6">
+      
       <h2 className="text-xl font-bold mb-4">Current Scorecard</h2>
       <div className="mb-4">
         <h3 className="font-semibold">{battingTeam.name}</h3>
@@ -108,6 +113,9 @@ export const ScoreCard: React.FC = () => {
           </table>
         </div>
       </div>
+    
     </div>
   );
 };
+
+export default ScoreCard;

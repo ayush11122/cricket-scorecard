@@ -17,8 +17,8 @@ export const createMatch = async (req: Request, res: Response) => {
 
 export const viewMatch = async (req: Request, res: Response) => {
   const matchdetails = await Match.find({ _id: "66f1350b7d11619154e2ae00" });
-  const teamdetails = await Team.find({name: "Team A"});
-  const teamdetails2 = await Team.find({ name: "Team B"});
+  const teamdetails = await Team.find({name: "India"});
+  const teamdetails2 = await Team.find({ name: "Australia"});
   res.status(200).json({ "matchdetails": matchdetails, "teamdetails":teamdetails, "teamdetails2":teamdetails2 });
 };
 

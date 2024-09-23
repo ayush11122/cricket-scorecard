@@ -1,58 +1,58 @@
-import React, { useState } from 'react';
+// ControlPanel.tsx
+import React from 'react';
 import { useCricketContext } from './CricketContext';
 
-export const ControlPanel: React.FC = () => {
-  const { scorecardData, val, setVal, currentInning, submitScore } = useCricketContext();
-  const [showOverthrowOptions, setShowOverthrowOptions] = useState(false);
+const ControlPanel: React.FC = () => {
+  const { 
+    scorecardData, 
+    val, 
+    setVal, 
+    currentInning, 
+    showOverthrowOptions,
+    handleButtonClick,
+    handleOverthrowSelect,
+    isAllPlayersSelected,
+    resetScore,
+    submitScore,
+    calculateTarget,
+    calculateRemainingBalls,
+    calculateRequiredRunRate
+  } = useCricketContext();
 
   if (!scorecardData) return null;
 
   const battingTeam = currentInning === 'inning1' ? scorecardData.teamdetails[0] : scorecardData.teamdetails2[0];
   const bowlingTeam = currentInning === 'inning1' ? scorecardData.teamdetails2[0] : scorecardData.teamdetails[0];
 
-  const handleButtonClick = (type: keyof typeof val, value: number | boolean) => {
-    setVal(prev => {
-      const newVal = { ...prev, [type]: value };
-      
-      if (type === 'noball' || type === 'wide' || type === 'legbye' || type === 'bye' || type === 'overthrow') {
-        newVal.extra = true;
-      }
-      
-      return newVal;
-    });
-
-    if (type === 'overthrow') {
-      setShowOverthrowOptions(true);
-    }
-  };
-
-  const handleOverthrowSelect = (runs: number) => {
-    setVal(prev => ({ ...prev, overthrow: runs, extra: true }));
-    setShowOverthrowOptions(false);
-  };
-
-  const isAllPlayersSelected = () => {
-    return val.striker !== '' && val.nonStriker !== '' && val.bowler !== '';
-  };
-
-  const resetScore = () => {
-    setVal({
-      extra: false,
-      noball: 0,
-      wide: 0,
-      legbye: 0,
-      bye: 0,
-      overthrow: 0,
-      runs: 0,
-      wicket: 0,
-      striker: '',
-      nonStriker: '',
-      bowler: ''
-    });
-  };
-
   return (
     <div className="md:w-1/3 bg-white shadow-md rounded-lg p-6">
+        {/* Team B wins by chasing the target */}
+      {scorecardData.matchdetails[0].inning2.totalRun >= calculateTarget() ? (
+        <div>
+          {scorecardData.teamdetails2[0].name} won by {10 - scorecardData.matchdetails[0].inning2.totalWicket} wickets
+        </div>
+      ) : (
+        /* Team A wins if Team B loses all wickets or cannot reach the target in the remaining balls */
+        scorecardData.matchdetails[0].inning2.totalWicket === 10 ||
+        calculateRemainingBalls() === 0 ? (
+          <div>
+            Team B won by {calculateTarget() - scorecardData.matchdetails[0].inning2.totalRun} runs
+          </div>
+        ) : (
+          /* If no team has won yet, show the target information */
+          <div className="mb-4 p-4 bg-blue-100 rounded-lg">
+            <h3 className="font-semibold text-lg mb-2">Target Information</h3>
+            <p>Target: {calculateTarget()}</p>
+            <p>Balls Remaining: {calculateRemainingBalls()}</p>
+            <p>Wickets in Hand: {10 - scorecardData.matchdetails[0].inning2.totalWicket}</p>
+            <p>Required Run Rate: {calculateRequiredRunRate().toFixed(2)}</p>
+            <p>
+              {scorecardData.teamdetails2[0].name} needs {calculateTarget() - scorecardData.matchdetails[0].inning2.totalRun} runs 
+              in {calculateRemainingBalls()} balls to win
+            </p>
+          </div>
+        )
+      )}
       <h2 className="text-xl font-bold mb-4">Control Panel</h2>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
@@ -214,3 +214,4 @@ export const ControlPanel: React.FC = () => {
   );
 };
 
+export default ControlPanel;
