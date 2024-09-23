@@ -9,9 +9,6 @@ const ScoreCard: React.FC = () => {
     val, 
     lastDeliveries, 
     formatOvers,
-    calculateTarget,
-    calculateRemainingBalls,
-    calculateRequiredRunRate
   } = useCricketContext();
 
   if (!scorecardData) return null;
