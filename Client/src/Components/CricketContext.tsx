@@ -29,7 +29,7 @@ type CricketContextType = {
   rotateStrike: () => void;
   checkInningCompletion: () => void;
   formatOvers: (totalOver: number, totalBall: number) => string;
-  calculateTarget: () => number | null;
+  calculateTarget: () => number;
   calculateRemainingBalls: () => number;
   calculateRequiredRunRate: () => number;
 };
@@ -237,7 +237,7 @@ export const CricketProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const calculateTarget = () => {
-    if (!scorecardData) return null;
+    if (!scorecardData) return 0;
     const inning1 = scorecardData.matchdetails[0].inning1;
     return inning1.totalRun + 1;
   };
