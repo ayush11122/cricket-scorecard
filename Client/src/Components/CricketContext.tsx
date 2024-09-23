@@ -196,7 +196,7 @@ export const CricketProvider: React.FC<{ children: React.ReactNode }> = ({ child
             striker: ''
         }))
     }
-    if ((totalRuns % 2 !== 0 && !val.extra)) {
+    if ((totalRuns % 2 !== 0 )) {
       setVal(prev => ({
         ...prev,
         striker: prev.nonStriker,
@@ -207,7 +207,8 @@ export const CricketProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setVal(prev => ({
             ...prev,
             striker: prev.nonStriker,
-            nonStriker: prev.striker
+            nonStriker: prev.striker,
+            bowler: ''
           }));
     } 
   };

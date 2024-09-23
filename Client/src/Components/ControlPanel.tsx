@@ -27,6 +27,10 @@ const ControlPanel: React.FC = () => {
   return (
     <div className="md:w-1/3 bg-white shadow-md rounded-lg p-6">
         {/* Team B wins by chasing the target */}
+        {
+  currentInning === 'inning2' && (
+    <>
+      {/* Team B wins by chasing the target */}
       {scorecardData.matchdetails[0].inning2.totalRun >= calculateTarget() ? (
         <div>
           {scorecardData.teamdetails2[0].name} won by {10 - scorecardData.matchdetails[0].inning2.totalWicket} wickets
@@ -53,6 +57,9 @@ const ControlPanel: React.FC = () => {
           </div>
         )
       )}
+    </>
+  )
+}
       <h2 className="text-xl font-bold mb-4">Control Panel</h2>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
